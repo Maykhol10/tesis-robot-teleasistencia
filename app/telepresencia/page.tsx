@@ -197,7 +197,7 @@ export default function TelepresenciaPage() {
         </div>
 
         {/* --- Transcripción del agente conversacional --- */}
-        <Card className="flex max-h-[36rem] flex-col lg:max-h-none">
+        <Card className="flex max-h-[36rem] min-h-0 flex-col lg:max-h-[calc(100dvh-8rem)]">
           <CardTitle
             icon={<Bot size={18} aria-hidden className="text-brand-500" />}
           >

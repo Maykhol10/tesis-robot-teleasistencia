@@ -28,7 +28,7 @@ export function Nav() {
   return (
     <nav
       aria-label="Navegación principal"
-      className="flex shrink-0 gap-1 overflow-x-auto border-b border-brand-100 bg-white px-3 py-2 md:h-dvh md:w-60 md:flex-col md:overflow-y-auto md:border-b-0 md:border-r md:px-3 md:py-5"
+      className="flex shrink-0 gap-1 overflow-x-auto border-b border-brand-100 bg-white px-3 py-2 md:h-full md:w-60 md:flex-col md:overflow-y-auto md:border-b-0 md:border-r md:px-3 md:py-5"
     >
       <div className="mb-1 hidden items-center gap-2.5 px-2 pb-4 md:flex">
         <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-500 text-white">
