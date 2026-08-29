@@ -179,6 +179,16 @@ export function useStreamRobot(): Stream {
         });
       }, 1000);
     } catch (e) {
+      // Sin esto el temporizador de rendición seguiría vivo y pisaría el
+      // mensaje de error veinte segundos más tarde.
+      if (relojRef.current) {
+        clearTimeout(relojRef.current);
+        relojRef.current = null;
+      }
+      if (medidorRef.current) {
+        clearInterval(medidorRef.current);
+        medidorRef.current = null;
+      }
       setEstado("error");
       setDetalle(e instanceof Error ? e.message : "No se pudo conectar");
       pcRef.current?.close();
@@ -187,7 +197,19 @@ export function useStreamRobot(): Stream {
   }, [desconectar]);
 
   // Al salir de la página cerramos la conexión: si no, la Pi sigue enviando.
-  useEffect(() => desconectar, [desconectar]);
+  //
+  // La lista de dependencias va vacía a propósito. Con `desconectar` dentro,
+  // React ejecuta la limpieza cada vez que esa función se recrea —no sólo al
+  // desmontar— y cualquier re-render cortaba el video en marcha.
+  useEffect(() => {
+    return () => {
+      medidorRef.current && clearInterval(medidorRef.current);
+      relojRef.current && clearTimeout(relojRef.current);
+      pcRef.current?.close();
+      pcRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return { estado, detalle, fps, videoRef, conectar, desconectar };
 }
