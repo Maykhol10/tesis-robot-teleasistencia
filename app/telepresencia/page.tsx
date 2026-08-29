@@ -12,7 +12,6 @@ import {
   Mic,
   MicOff,
   PhoneOff,
-  Send,
   Square,
   Video,
   VideoOff,
@@ -27,23 +26,12 @@ import {
 } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { useStreamRobot } from "@/lib/webrtc";
+import { BotonChat, PanelChat } from "@/components/chat";
 import {
   adultoMayor,
   configuracionInicial,
-  conversacion,
   estadoRobot,
-  etiquetaEmisor,
-  type Emisor,
 } from "@/lib/mock-data";
-import { formatFechaHora } from "@/lib/utils";
-
-// Cada emisor tiene su propio color de burbuja: quien habla se distingue
-// sin leer la etiqueta.
-const estiloMensaje: Record<Emisor, string> = {
-  "adulto-mayor": "bg-warn-bg text-ink ring-warn/30",
-  cuidador: "bg-signal/15 text-ink ring-signal/40",
-  "agente-llm": "bg-base-700 text-ink-muted ring-base-500",
-};
 
 /** Cruceta de teleoperación. Solo se muestra si el cuidador tiene permiso. */
 function ControlesMovimiento({ habilitado }: { habilitado: boolean }) {
@@ -56,8 +44,10 @@ function ControlesMovimiento({ habilitado }: { habilitado: boolean }) {
   ];
 
   return (
-    <div>
-      <div className="grid grid-cols-3 grid-rows-3 gap-2">
+    // Centrada en el alto sobrante: la tarjeta se estira hasta igualar al
+    // vídeo, y la cruceta pegada arriba dejaría un hueco debajo.
+    <div className="flex flex-1 flex-col justify-center">
+      <div className="mx-auto grid w-fit grid-cols-3 grid-rows-3 gap-1.5">
         {botones.map(({ dir, Icono, clase }) => (
           <button
             key={dir}
@@ -66,7 +56,7 @@ function ControlesMovimiento({ habilitado }: { habilitado: boolean }) {
             aria-label={`Mover ${dir}`}
             className={cn(
               clase,
-              "grid h-14 cursor-pointer place-items-center rounded-xl border border-base-500 bg-base-800 text-ink-muted transition-colors",
+              "grid h-14 w-14 cursor-pointer place-items-center rounded-xl border border-base-500 bg-base-800 text-ink-muted transition-colors",
               "hover:border-base-400 hover:bg-base-700 active:bg-base-600",
               "disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-base-800",
               dir === "detener" && "border-danger/50 bg-danger-bg text-danger"
@@ -76,9 +66,9 @@ function ControlesMovimiento({ habilitado }: { habilitado: boolean }) {
           </button>
         ))}
       </div>
-      <p className="mt-3 text-sm text-ink-muted">
+      <p className="mt-3 text-center text-sm text-ink-muted">
         {habilitado
-          ? "El robot evita obstáculos automáticamente aunque lo estés guiando."
+          ? "Evita obstáculos por sí solo mientras lo guías."
           : "La teleoperación está desactivada en Configuración."}
       </p>
     </div>
@@ -88,11 +78,11 @@ function ControlesMovimiento({ habilitado }: { habilitado: boolean }) {
 export default function TelepresenciaPage() {
   const [microfono, setMicrofono] = useState(true);
   const [camara, setCamara] = useState(true);
-  const [borrador, setBorrador] = useState("");
   const stream = useStreamRobot();
+  const [chatAbierto, setChatAbierto] = useState(false);
 
   return (
-    <>
+    <div className="flex min-h-full flex-col">
       <PageHeader
         titulo="Telepresencia"
         descripcion={`Videollamada en vivo con ${adultoMayor.nombre.split(" ")[0]} a través del robot.`}
@@ -103,9 +93,19 @@ export default function TelepresenciaPage() {
         </Badge>
       </PageHeader>
 
-      <div className="grid gap-5 lg:grid-cols-3">
+      {/* Al abrir la conversación el vídeo cede ancho en vez de quedar tapado:
+          durante la teleoperación hay que seguir viendo lo que hace el robot. */}
+      <div
+        className={cn(
+          // La altura de la fila la fija el vídeo (su proporción 16:9 más la
+          // barra de acciones); las otras columnas se estiran a esa medida y
+          // desplazan por dentro si su contenido no cabe.
+          "grid min-h-0 gap-5",
+          chatAbierto ? "lg:grid-cols-4" : "lg:grid-cols-3"
+        )}
+      >
         {/* --- Video en vivo --- */}
-        <div className="lg:col-span-2">
+        <div className="min-h-0 lg:col-span-2">
           <Card className="p-0">
             <div className="reticula relative aspect-video w-full overflow-hidden rounded-t-2xl bg-black">
               {/* Stream del robot. Sigue oculto hasta que llega el primer
@@ -227,6 +227,11 @@ export default function TelepresenciaPage() {
                 {camara ? "Cámara" : "Cámara apagada"}
               </Boton>
 
+              <BotonChat
+                abierto={chatAbierto}
+                alPulsar={() => setChatAbierto((v) => !v)}
+              />
+
               <Boton
                 variante="emergencia"
                 className="px-5"
@@ -238,8 +243,12 @@ export default function TelepresenciaPage() {
               </Boton>
             </div>
           </Card>
+        </div>
 
-          <Card className="mt-5">
+        {/* --- Guiar al robot. La celda es el ancla: la tarjeta se estira
+            dentro sin aportar altura a la fila. --- */}
+        <div className="relative min-h-0">
+          <Card className="flex min-h-0 flex-col overflow-y-auto lg:absolute lg:inset-0">
             <CardTitle
               icon={<Bot size={20} aria-hidden className="text-ink-faint" />}
             >
@@ -251,68 +260,12 @@ export default function TelepresenciaPage() {
           </Card>
         </div>
 
-        {/* --- Transcripción del agente conversacional --- */}
-        <Card className="flex max-h-[36rem] min-h-0 flex-col lg:max-h-[calc(100dvh-8rem)]">
-          <CardTitle
-            icon={<Bot size={20} aria-hidden className="text-ink-faint" />}
-          >
-            Conversación
-          </CardTitle>
-
-          <ol className="flex-1 space-y-3 overflow-y-auto pr-1">
-            {conversacion.map((m) => {
-              const propio = m.emisor === "cuidador";
-              return (
-                <li
-                  key={m.id}
-                  className={cn("flex flex-col", propio && "items-end")}
-                >
-                  <p className="mb-1 text-xs font-bold text-ink-muted">
-                    {etiquetaEmisor[m.emisor]} · {formatFechaHora(m.timestamp)}
-                  </p>
-                  <p
-                    className={cn(
-                      "max-w-[90%] rounded-2xl px-3.5 py-2.5 text-sm ring-1 ring-inset",
-                      estiloMensaje[m.emisor]
-                    )}
-                  >
-                    {m.texto}
-                  </p>
-                </li>
-              );
-            })}
-          </ol>
-
-          <form
-            className="mt-4 flex gap-2 border-t border-base-500 pt-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              setBorrador("");
-            }}
-          >
-            <label htmlFor="mensaje" className="sr-only">
-              Escribir mensaje
-            </label>
-            <input
-              id="mensaje"
-              value={borrador}
-              onChange={(e) => setBorrador(e.target.value)}
-              placeholder="Escribe un mensaje…"
-              className="min-h-11 min-w-0 flex-1 rounded-xl border border-base-500 px-3.5 py-2.5 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-signal"
-            />
-            <Boton
-              type="submit"
-              aria-label="Enviar mensaje"
-              className="w-12 shrink-0 px-0"
-            >
-              <Send size={18} aria-hidden />
-            </Boton>
-          </form>
-          <p className="mt-2 text-sm text-ink-muted">
-            El robot leerá tu mensaje en voz alta.
-          </p>
-        </Card>
+        {chatAbierto && (
+          <div className="relative min-h-0">
+            <PanelChat alCerrar={() => setChatAbierto(false)} />
+          </div>
+        )}
       </div>
-    </>
+    </div>
   );
 }

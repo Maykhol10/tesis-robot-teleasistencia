@@ -100,6 +100,63 @@ que sobrevivan a un reinicio.
 
 ---
 
+## 6. Las tarjetas de telepresencia no cuadraban de altura
+
+**Síntoma.** Las tres columnas —vídeo, controles, conversación—
+terminaban a alturas distintas. Al abrir el chat todo se estiraba hasta
+salirse de la pantalla, con la cruceta flotando en un hueco enorme.
+
+**Causa.** La tarjeta del vídeo lleva `p-0`, así que su altura es
+exactamente el `aspect-video` (16:9) más la barra de acciones. Las otras
+dos llevan `p-5` y crecen con su contenido. **Nunca iban a coincidir.**
+Y cuando una columna se estiraba con `h-full`, empujaba la fila entera:
+en una rejilla eso no significa «la altura de la fila», significa que
+ese hijo la define.
+
+**Arreglo.** Que **una sola columna aporte altura** —el vídeo— y las
+demás la llenen sin definirla:
+
+```tsx
+{/* la celda es el ancla */}
+<div className="relative min-h-0">
+  <Card className="flex min-h-0 flex-col overflow-y-auto lg:absolute lg:inset-0">
+```
+
+`absolute` saca la tarjeta del cálculo de altura de la fila; `inset-0`
+la estira a la celda; `min-h-0` permite que desplace por dentro. En
+móvil se apila y cada tarjeta recupera su altura natural.
+
+**Cómo se diagnostica.** Antes de tocar clases de altura, **leer el
+componente**: si dos tarjetas tienen padding distinto (`p-0` frente a
+`p-5`) no van a igualarse solas, y ajustar `items-start` / `h-fit` /
+`self-start` a ojo no lo resuelve. La pregunta útil es *quién define la
+altura de la fila*, y la respuesta debe ser uno solo.
+
+---
+
+## 7. El chat no puede ir superpuesto
+
+**Causa.** Una burbuja flotante estilo WhatsApp tapaba el vídeo. Es el
+antipatrón que WCAG 2.2 AA nombra literalmente en **«Focus Not
+Obscured»**: *«chat widgets que cubren el contenido»*.
+
+Aquí además es de seguridad, no sólo de accesibilidad: se está
+conduciendo un robot dentro de la casa de una persona mayor, y tapar el
+vídeo es tapar lo único que dice qué está haciendo.
+
+**Arreglo.** El chat es **una columna más de la rejilla**, no una capa
+encima. Al abrirlo la rejilla pasa de 3 a 4 columnas y el vídeo cede
+ancho en vez de quedar oculto:
+
+```tsx
+chatAbierto ? "lg:grid-cols-4" : "lg:grid-cols-3"
+```
+
+El botón vive en la barra de acciones del vídeo, junto a micrófono y
+cámara. Ver [components/chat.tsx](components/chat.tsx).
+
+---
+
 ## Configuración
 
 `NEXT_PUBLIC_ROBOT_URL` define a qué robot apunta la web:
@@ -156,6 +213,16 @@ El orden importa. Cada paso descarta una capa entera:
 **Lo que más tiempo costó fue no empezar por el paso 1.** Que el intento no
 aparezca en el log del robot es la señal más informativa que hay: descarta de
 golpe el servidor, la red y el túnel.
+
+### Para problemas de maquetación
+
+La misma idea, aplicada al CSS: **leer el componente antes de tocar sus
+clases**. Las alturas de telepresencia costaron varias rondas de probar
+`items-start`, `h-fit` y `self-start` a ojo; la respuesta estaba en que
+`Card` recibía `p-0` en un sitio y `p-5` en otro.
+
+La pregunta que lo resuelve es *quién define la altura de la fila*. Si
+la respuesta es «varias cosas a la vez», ahí está el fallo.
 
 ---
 
