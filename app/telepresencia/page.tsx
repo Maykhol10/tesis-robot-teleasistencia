@@ -26,6 +26,12 @@ import {
 } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { useStreamRobot } from "@/lib/webrtc";
+import {
+  useTeleoperacion,
+  VELOCIDAD_MAX,
+  VELOCIDAD_MIN,
+  type Direccion,
+} from "@/lib/teleoperacion";
 import { BotonChat, PanelChat } from "@/components/chat";
 import {
   adultoMayor,
@@ -35,41 +41,103 @@ import {
 
 /** Cruceta de teleoperación. Solo se muestra si el cuidador tiene permiso. */
 function ControlesMovimiento({ habilitado }: { habilitado: boolean }) {
-  const botones = [
-    { dir: "adelante", Icono: ArrowUp, clase: "col-start-2 row-start-1" },
-    { dir: "izquierda", Icono: ArrowLeft, clase: "col-start-1 row-start-2" },
-    { dir: "detener", Icono: Square, clase: "col-start-2 row-start-2" },
-    { dir: "derecha", Icono: ArrowRight, clase: "col-start-3 row-start-2" },
-    { dir: "atrás", Icono: ArrowDown, clase: "col-start-2 row-start-3" },
+  const botones: { dir: Direccion; etiqueta: string; Icono: typeof ArrowUp; clase: string }[] = [
+    { dir: "adelante", etiqueta: "adelante", Icono: ArrowUp, clase: "col-start-2 row-start-1" },
+    { dir: "izquierda", etiqueta: "a la izquierda", Icono: ArrowLeft, clase: "col-start-1 row-start-2" },
+    { dir: "detener", etiqueta: "detener", Icono: Square, clase: "col-start-2 row-start-2" },
+    { dir: "derecha", etiqueta: "a la derecha", Icono: ArrowRight, clase: "col-start-3 row-start-2" },
+    { dir: "atras", etiqueta: "atrás", Icono: ArrowDown, clase: "col-start-2 row-start-3" },
   ];
+
+  const robot = useTeleoperacion(habilitado);
 
   return (
     // Centrada en el alto sobrante: la tarjeta se estira hasta igualar al
     // vídeo, y la cruceta pegada arriba dejaría un hueco debajo.
     <div className="flex flex-1 flex-col justify-center">
       <div className="mx-auto grid w-fit grid-cols-3 grid-rows-3 gap-1.5">
-        {botones.map(({ dir, Icono, clase }) => (
+        {botones.map(({ dir, etiqueta, Icono, clase }) => (
           <button
             key={dir}
             type="button"
             disabled={!habilitado}
-            aria-label={`Mover ${dir}`}
+            aria-label={
+              dir === "detener" ? "Detener el robot" : `Mover ${etiqueta}`
+            }
+            // El robot se mueve mientras el botón siga pulsado. Soltar, salir
+            // con el puntero o quitar el foco lo detiene: así no se queda
+            // andando por un gesto a medias.
+            onPointerDown={() => robot.empezar(dir)}
+            onPointerUp={robot.parar}
+            onPointerLeave={robot.parar}
+            onBlur={robot.parar}
+            // Con el teclado: mantener pulsada la tecla mueve, soltarla para.
+            onKeyDown={(e) => {
+              if (e.key === " " || e.key === "Enter") {
+                e.preventDefault();
+                if (!e.repeat) robot.empezar(dir);
+              }
+            }}
+            onKeyUp={(e) => {
+              if (e.key === " " || e.key === "Enter") robot.parar();
+            }}
             className={cn(
               clase,
-              "grid h-14 w-14 cursor-pointer place-items-center rounded-xl border border-base-500 bg-base-800 text-ink-muted transition-colors",
+              "grid h-14 w-14 cursor-pointer touch-none select-none place-items-center rounded-xl border border-base-500 bg-base-800 text-ink-muted transition-colors",
               "hover:border-base-400 hover:bg-base-700 active:bg-base-600",
               "disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-base-800",
-              dir === "detener" && "border-danger/50 bg-danger-bg text-danger"
+              dir === "detener" && "border-danger/50 bg-danger-bg text-danger",
+              robot.activa === dir && "border-signal bg-signal/20 text-signal"
             )}
           >
             <Icono size={22} aria-hidden />
           </button>
         ))}
       </div>
-      <p className="mt-3 text-center text-sm text-ink-muted">
-        {habilitado
-          ? "Evita obstáculos por sí solo mientras lo guías."
-          : "La teleoperación está desactivada en Configuración."}
+      {/* Velocidad. Se puede mover con el robot en marcha: la siguiente
+          repetición de la orden ya sale con el valor nuevo. */}
+      <div className="mt-5">
+        <div className="flex items-baseline justify-between gap-3">
+          <label
+            htmlFor="velocidad"
+            className="text-xs font-bold uppercase tracking-label text-ink-muted"
+          >
+            Velocidad
+          </label>
+          <span className="tabular text-sm font-bold text-signal">
+            {robot.velocidad}
+          </span>
+        </div>
+        <input
+          id="velocidad"
+          type="range"
+          min={VELOCIDAD_MIN}
+          max={VELOCIDAD_MAX}
+          step={1}
+          value={robot.velocidad}
+          disabled={!habilitado}
+          onChange={(e) => robot.setVelocidad(Number(e.target.value))}
+          className="mt-2 h-11 w-full cursor-pointer accent-signal disabled:cursor-not-allowed disabled:opacity-40"
+        />
+        <div className="flex justify-between text-xs text-ink-faint">
+          <span>Lenta</span>
+          <span>Rápida</span>
+        </div>
+      </div>
+
+      <p
+        className={cn(
+          "mt-3 text-center text-sm",
+          robot.error ? "font-bold text-danger" : "text-ink-muted"
+        )}
+        // Un fallo al mover debe leerse en cuanto ocurre, no al final.
+        role={robot.error ? "alert" : undefined}
+      >
+        {robot.error
+          ? robot.error
+          : habilitado
+            ? "Mantén pulsado para mover. Se detiene al soltar."
+            : "La teleoperación está desactivada en Configuración."}
       </p>
     </div>
   );

@@ -157,6 +157,40 @@ cámara. Ver [components/chat.tsx](components/chat.tsx).
 
 ---
 
+## 8. Teleoperación: el robot debe parar solo
+
+El control de motores va por I2C a la controladora en `0x34` (motores
+JGB37-520). El código sale de
+`Robotica_Avanzada/Proyecto/Seguidor_de_objetos/Encoder_test3.py`, que ya
+movía el robot desde el teclado; sólo cambia de dónde vienen las órdenes.
+
+**La decisión que importa: mantener pulsado, no alternar.** El navegador
+repite la dirección cada 200 ms mientras el botón siga pulsado, y un
+vigilante en la Pi para los motores si dejan de llegar en 600 ms.
+
+Sin ese vigilante, cerrar la pestaña o perder el WiFi dejaría al robot
+andando por la casa hasta chocar. Con él se detiene en medio segundo.
+El margen es mayor que el intervalo de repetición a propósito: si fueran
+iguales, el movimiento se cortaría entre órdenes.
+
+En la web para también al soltar, al sacar el puntero del botón, al
+perder el foco y al salir de la página (con `keepalive` para que la
+petición salga aunque se cierre).
+
+**Velocidad ajustable** de 3 a 25 (por defecto 5, el valor fijo que tenía
+el script original). Por debajo de 3 los motores zumban sin girar; 25 ya
+es rápido de más para una vivienda. Un valor fuera de rango se **acota en
+vez de rechazarse**: viene de la interfaz, no de la persona, y es mejor
+moverse despacio que quedarse quieto por un error.
+
+Se puede cambiar con el robot en marcha — la siguiente repetición sale
+con el valor nuevo.
+
+Ver [lib/teleoperacion.ts](lib/teleoperacion.ts) y `scripts/motores.py`
+en la Pi.
+
+---
+
 ## Configuración
 
 `NEXT_PUBLIC_ROBOT_URL` define a qué robot apunta la web:
