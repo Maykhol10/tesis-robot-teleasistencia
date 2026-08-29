@@ -147,7 +147,9 @@ export default function TelepresenciaPage() {
                         <Video size={18} aria-hidden />
                         {stream.estado === "conectando"
                           ? "Conectando…"
-                          : "Conectar al robot"}
+                          : stream.estado === "error"
+                            ? "Reintentar"
+                            : "Conectar al robot"}
                       </Boton>
                     )}
                   </div>

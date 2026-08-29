@@ -60,6 +60,7 @@ export function useStreamRobot(): Stream {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const medidorRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const relojRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [estado, setEstado] = useState<EstadoStream>(
     URL_ROBOT ? "desconectado" : "sin-configurar"
@@ -73,6 +74,10 @@ export function useStreamRobot(): Stream {
     if (medidorRef.current) {
       clearInterval(medidorRef.current);
       medidorRef.current = null;
+    }
+    if (relojRef.current) {
+      clearTimeout(relojRef.current);
+      relojRef.current = null;
     }
     pcRef.current?.close();
     pcRef.current = null;
@@ -93,12 +98,37 @@ export function useStreamRobot(): Stream {
       const pc = new RTCPeerConnection({ iceServers: SERVIDORES_HIELO });
       pcRef.current = pc;
 
+      // Sin esto una negociación que nunca termina deja el botón en
+      // "Conectando…" para siempre, sin forma de saber qué pasó ni de
+      // reintentar.
+      relojRef.current = setTimeout(() => {
+        if (pcRef.current === pc && pc.connectionState !== "connected") {
+          pc.close();
+          pcRef.current = null;
+          setEstado("error");
+          setDetalle("El robot no respondió a tiempo. Vuelve a intentarlo.");
+        }
+      }, 20000);
+
       pc.addEventListener("track", (e) => {
         if (videoRef.current) videoRef.current.srcObject = e.streams[0];
       });
 
+      // Un fallo de ICE no siempre se refleja en connectionState, y entonces
+      // la conexión queda muerta sin avisar.
+      pc.addEventListener("iceconnectionstatechange", () => {
+        if (pc.iceConnectionState === "failed" && pcRef.current === pc) {
+          setEstado("error");
+          setDetalle("No se encontró ruta hacia el robot");
+        }
+      });
+
       pc.addEventListener("connectionstatechange", () => {
         if (pc.connectionState === "connected") {
+          if (relojRef.current) {
+            clearTimeout(relojRef.current);
+            relojRef.current = null;
+          }
           setEstado("conectado");
           setDetalle("Transmitiendo");
         } else if (
