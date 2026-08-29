@@ -15,6 +15,31 @@ import { useCallback, useEffect, useRef, useState } from "react";
  */
 export const URL_ROBOT = process.env.NEXT_PUBLIC_ROBOT_URL ?? "";
 
+/**
+ * Servidores de hielo (ICE).
+ *
+ * STUN sólo revela la dirección pública de cada extremo. Cuando los dos están
+ * tras un NAT restrictivo —datos móviles o CGNAT— no existe ninguna ruta
+ * directa entre ellos, y hace falta TURN: un servidor que retransmite el
+ * video en lugar de conectar los extremos.
+ *
+ * Estos son relevos públicos de prueba: el video pasa por terceros y el ancho
+ * de banda no está garantizado. Para el sistema real hay que sustituirlos por
+ * un TURN propio.
+ */
+const SERVIDORES_HIELO: RTCIceServer[] = [
+  { urls: "stun:stun.l.google.com:19302" },
+  {
+    urls: [
+      "turn:openrelay.metered.ca:80",
+      "turn:openrelay.metered.ca:443",
+      "turn:openrelay.metered.ca:443?transport=tcp",
+    ],
+    username: "openrelayproject",
+    credential: "openrelayproject",
+  },
+];
+
 export type EstadoStream =
   | "sin-configurar"
   | "desconectado"
@@ -65,12 +90,7 @@ export function useStreamRobot(): Stream {
     setDetalle("Negociando con el robot…");
 
     try {
-      // STUN permite al navegador descubrir su propia dirección pública. Sin
-      // esto sólo anuncia su IP privada, y desde otra red no hay ninguna ruta
-      // por la que el video pueda llegar aunque la señalización funcione.
-      const pc = new RTCPeerConnection({
-        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-      });
+      const pc = new RTCPeerConnection({ iceServers: SERVIDORES_HIELO });
       pcRef.current = pc;
 
       pc.addEventListener("track", (e) => {
