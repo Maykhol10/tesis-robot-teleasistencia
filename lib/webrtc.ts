@@ -23,21 +23,15 @@ export const URL_ROBOT = process.env.NEXT_PUBLIC_ROBOT_URL ?? "";
  * directa entre ellos, y hace falta TURN: un servidor que retransmite el
  * video en lugar de conectar los extremos.
  *
- * Estos son relevos públicos de prueba: el video pasa por terceros y el ancho
- * de banda no está garantizado. Para el sistema real hay que sustituirlos por
- * un TURN propio.
+ * Aquí sólo hay STUN. Se probaron los relevos TURN públicos de openrelay y
+ * ya no aceptan sus credenciales abiertas: no entregaban ni un candidato, y
+ * un TURN que no responde retrasa la recolección de candidatos en lugar de
+ * ayudar. Si hiciera falta atravesar un NAT restrictivo, el sitio para poner
+ * credenciales propias es éste.
  */
 const SERVIDORES_HIELO: RTCIceServer[] = [
   { urls: "stun:stun.l.google.com:19302" },
-  {
-    urls: [
-      "turn:openrelay.metered.ca:80",
-      "turn:openrelay.metered.ca:443",
-      "turn:openrelay.metered.ca:443?transport=tcp",
-    ],
-    username: "openrelayproject",
-    credential: "openrelayproject",
-  },
+  { urls: "stun:stun1.l.google.com:19302" },
 ];
 
 export type EstadoStream =
@@ -145,15 +139,24 @@ export function useStreamRobot(): Stream {
 
       await pc.setLocalDescription(await pc.createOffer());
 
-      // Esperamos a que ICE termine para mandar una única oferta completa.
+      // Esperamos a que ICE termine para mandar una única oferta completa,
+      // pero con un tope: si un servidor de hielo no responde, la recolección
+      // puede no completar nunca y entonces la oferta no llega a enviarse —el
+      // botón se queda en "Conectando…" sin que nada haya salido del equipo.
+      // Los candidatos recogidos hasta ese momento suelen bastar.
       await new Promise<void>((listo) => {
         if (pc.iceGatheringState === "complete") return listo();
-        const revisar = () => {
-          if (pc.iceGatheringState === "complete") {
-            pc.removeEventListener("icegatheringstatechange", revisar);
-            listo();
-          }
+
+        const terminar = () => {
+          clearTimeout(tope);
+          pc.removeEventListener("icegatheringstatechange", revisar);
+          listo();
         };
+        const revisar = () => {
+          if (pc.iceGatheringState === "complete") terminar();
+        };
+        const tope = setTimeout(terminar, 3000);
+
         pc.addEventListener("icegatheringstatechange", revisar);
       });
 
