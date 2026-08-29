@@ -1,4 +1,3 @@
-import Link from "next/link";
 import {
   Activity,
   BatteryCharging,
@@ -7,24 +6,30 @@ import {
   Clock,
   MapPin,
   MessageCircle,
+  Radio,
   Video,
   Wifi,
 } from "lucide-react";
 import {
   Badge,
-  Barra,
+  BotonEnlace,
   Card,
   CardTitle,
-  Metrica,
-  PageHeader,
+  Chispa,
+  Lectura,
+  MarcaSeveridad,
   PuntoEstado,
+  Rotulo,
+  Vacio,
   etiquetaConexion,
   tonoConexion,
   tonoEstadoAlerta,
   tonoSeveridad,
 } from "@/components/ui";
+import { Croquis } from "@/components/croquis";
 import {
   actividadSemanal,
+  alertaCritica,
   adultoMayor,
   alertas,
   conversacion,
@@ -36,203 +41,260 @@ import {
 } from "@/lib/mock-data";
 import { formatFechaHora, tiempoRelativo } from "@/lib/utils";
 
-const tonoBateria = (n: number) =>
-  n < 20 ? "alert" : n < 40 ? "warning" : "calm";
+const tonoBateria = (n: number) => (n < 20 ? "danger" : n < 40 ? "warn" : "ok");
 
-export default function DashboardPage() {
+export default function PanelPage() {
   const ultimasAlertas = alertas.slice(0, 4);
   const ultimosMensajes = [...conversacion].reverse().slice(0, 3);
   const hoy = actividadSemanal[actividadSemanal.length - 1];
   const nombreCorto = adultoMayor.nombre.split(" ")[0];
+  const serieMovimientos = actividadSemanal.map((d) => d.movimientos);
+  const serieHoras = actividadSemanal.map((d) => d.horasActivo);
 
   return (
     <>
-      <PageHeader
-        titulo="Buenas tardes"
-        descripcion={`Así va el día de ${nombreCorto}. El robot la está acompañando en este momento.`}
-      >
-        <Link
-          href="/telepresencia"
-          className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white shadow-soft transition-colors hover:bg-brand-600"
-        >
-          <Video size={16} aria-hidden />
-          Iniciar videollamada
-        </Link>
-      </PageHeader>
-
-      {/* Estado de la persona: lo primero y lo más grande de la pantalla. */}
-      <Card className="mb-5 bg-gradient-to-br from-white to-brand-50/60">
-        <div className="flex flex-wrap items-center gap-5">
-          <span className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-warm-100 text-2xl font-semibold text-warm-500">
-            {adultoMayor.nombre
-              .split(" ")
-              .map((p) => p[0])
-              .join("")}
+      {/* ------------------------------------------------------------------
+          BLOQUE PRIMARIO — la respuesta a "¿cómo está?" ocupa el ancho
+          completo y se lee desde el otro lado de la habitación.
+          ------------------------------------------------------------------ */}
+      <section className="mb-4 overflow-hidden rounded-3xl border border-base-500 bg-base-800 shadow-raised">
+        <div className="flex flex-wrap items-center gap-3 border-b border-base-500 bg-base-700/60 px-5 py-2.5">
+          <div className="flex items-center gap-2">
+            <PuntoEstado tono="ok" />
+            <Rotulo className="text-ok">Vigilancia activa</Rotulo>
+          </div>
+          <span className="tabular ml-auto text-xs text-ink-faint">
+            {formatFechaHora(adultoMayor.ultimaActividad)}
           </span>
+        </div>
 
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <h2 className="text-xl font-semibold text-brand-900">
-                {adultoMayor.nombre}
-              </h2>
-              <Badge tono="calm">
-                <PuntoEstado tono="calm" />
-                Activa
-              </Badge>
-            </div>
-            <p className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-brand-600">
-              <span className="inline-flex items-center gap-1.5">
-                <MapPin size={15} aria-hidden />
+        <div className="grid gap-6 p-6 lg:grid-cols-[1.4fr_1fr] lg:items-center">
+          <div>
+            <Rotulo>Estado de la persona</Rotulo>
+            {/* El veredicto en una sola frase enorme. Ningún cuidador
+                debería tener que interpretar cifras para saber esto. */}
+            <p className="mt-2 text-hero font-bold leading-none text-ok">
+              Todo bien
+            </p>
+            <p className="mt-3 text-lg text-ink">
+              <span className="font-bold">{nombreCorto}</span> está{" "}
+              {adultoMayor.descripcionActividad.toLowerCase()}.
+            </p>
+
+            <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-ink-muted">
+              <span className="inline-flex items-center gap-2">
+                <MapPin size={16} aria-hidden className="text-signal" />
                 {adultoMayor.ubicacionHogar}
               </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Activity size={15} aria-hidden />
-                {adultoMayor.descripcionActividad}
+              <span className="inline-flex items-center gap-2">
+                <Clock size={16} aria-hidden className="text-signal" />
+                Activa {tiempoRelativo(adultoMayor.ultimaActividad)}
               </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Clock size={15} aria-hidden />
-                Última actividad {tiempoRelativo(adultoMayor.ultimaActividad)}
+              <span className="inline-flex items-center gap-2">
+                <Radio size={16} aria-hidden className="text-signal" />
+                Robot en {estadoRobot.ubicacion}
               </span>
-            </p>
+            </div>
+
+            <div className="mt-6 flex flex-wrap gap-2.5">
+              <BotonEnlace href="/telepresencia">
+                <Video size={18} aria-hidden />
+                Iniciar videollamada
+              </BotonEnlace>
+              <BotonEnlace href="/alertas" variante="secundario">
+                Revisar alertas
+              </BotonEnlace>
+            </div>
+
+            {/* Pulso del día: dos cifras y su silueta semanal. */}
+            <div className="mt-6 grid gap-5 border-t border-base-500 pt-5 sm:grid-cols-2">
+              <div>
+                <Rotulo>Movimientos hoy</Rotulo>
+                <p className="tabular mt-1 text-metric font-bold text-ink">
+                  {hoy.movimientos}
+                </p>
+                <Chispa datos={serieMovimientos} tono="signal" />
+              </div>
+              <div>
+                <Rotulo>Horas activa</Rotulo>
+                <p className="tabular mt-1 text-metric font-bold text-ink">
+                  {hoy.horasActivo}
+                </p>
+                <Chispa datos={serieHoras} tono="ok" />
+              </div>
+            </div>
           </div>
 
-          <dl className="flex gap-6 rounded-xl bg-white/70 px-5 py-3 ring-1 ring-inset ring-brand-100">
-            <div>
-              <dt className="text-xs font-medium uppercase tracking-wide text-brand-500">
-                Movimientos hoy
-              </dt>
-              <dd className="mt-0.5 text-lg font-semibold text-brand-900">
-                {hoy.movimientos}
-              </dd>
+          {/* Croquis: dónde está, no sólo en qué habitación se llama. */}
+          <div className="lg:border-l lg:border-base-500 lg:pl-6">
+            <div className="mb-3 flex items-baseline justify-between gap-3">
+              <Rotulo>Planta de la casa</Rotulo>
+              <span className="text-xs font-bold text-ok">
+                {adultoMayor.ubicacionHogar}
+              </span>
             </div>
-            <div>
-              <dt className="text-xs font-medium uppercase tracking-wide text-brand-500">
-                Charlas hoy
-              </dt>
-              <dd className="mt-0.5 text-lg font-semibold text-brand-900">
-                {hoy.interaccionesLLM}
-              </dd>
-            </div>
-          </dl>
+            <Croquis
+              ubicacionPersona={adultoMayor.ubicacionHogar}
+              ubicacionRobot={estadoRobot.ubicacion}
+              ubicacionAlerta={alertaCritica?.ubicacion}
+            />
+          </div>
         </div>
-      </Card>
+      </section>
 
-      {/* Estado técnico del robot: presente, pero secundario. */}
-      <div className="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Metrica
+      {/* ------------------------------------------------------------------
+          TELEMETRÍA — fila de instrumentos, subordinada a lo anterior.
+          ------------------------------------------------------------------ */}
+      <Rotulo className="mb-2.5">Telemetría del robot</Rotulo>
+      <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Lectura
           etiqueta="Batería"
-          valor={`${estadoRobot.bateria}%`}
+          valor={String(estadoRobot.bateria)}
+          unidad="%"
+          barra={estadoRobot.bateria}
           detalle={estadoRobot.cargando ? "Cargando en base" : "Autonomía ~3 h"}
           tono={tonoBateria(estadoRobot.bateria)}
           icono={
             estadoRobot.cargando ? (
-              <BatteryCharging size={20} aria-hidden />
+              <BatteryCharging size={18} aria-hidden />
             ) : (
-              <BatteryMedium size={20} aria-hidden />
+              <BatteryMedium size={18} aria-hidden />
             )
           }
         />
-        <Metrica
-          etiqueta="Conexión"
-          valor={etiquetaConexion[estadoRobot.conexion]}
-          detalle={`Señal Wi-Fi ${estadoRobot.senalWifi}/4`}
+        <Lectura
+          etiqueta="Señal Wi-Fi"
+          valor={String(estadoRobot.senalWifi)}
+          unidad="/ 4"
+          barra={(estadoRobot.senalWifi / 4) * 100}
+          detalle={etiquetaConexion[estadoRobot.conexion]}
           tono={tonoConexion[estadoRobot.conexion]}
-          icono={<Wifi size={20} aria-hidden />}
+          icono={<Wifi size={18} aria-hidden />}
         />
-        <Metrica
-          etiqueta="Robot en"
+        <Lectura
+          etiqueta="Ubicación robot"
           valor={estadoRobot.ubicacion}
           detalle="Navegación autónoma activa"
-          tono="brand"
-          icono={<Bot size={20} aria-hidden />}
+          tono="signal"
+          icono={<Bot size={18} aria-hidden />}
         />
-        <Metrica
+        <Lectura
           etiqueta="Último check-in"
-          valor={tiempoRelativo(estadoRobot.ultimoCheckIn)}
+          valor={tiempoRelativo(estadoRobot.ultimoCheckIn).replace("hace ", "")}
           detalle={formatFechaHora(estadoRobot.ultimoCheckIn)}
-          tono="brand"
-          icono={<Clock size={20} aria-hidden />}
+          tono="neutral"
+          icono={<Clock size={18} aria-hidden />}
         />
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-3">
+      {/* ------------------------------------------------------------------
+          REGISTRO — bitácora de eventos y conversación.
+          ------------------------------------------------------------------ */}
+      <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardTitle
-            icon={<Activity size={18} aria-hidden className="text-brand-500" />}
+            icon={<Activity size={16} aria-hidden />}
             action={
-              <Link
-                href="/alertas"
-                className="text-sm font-medium text-brand-600 hover:text-brand-800"
-              >
+              <BotonEnlace href="/alertas" variante="fantasma">
                 Ver todas
-              </Link>
+              </BotonEnlace>
             }
           >
-            Alertas recientes
+            Registro de eventos
           </CardTitle>
 
-          <ul className="divide-y divide-brand-100">
-            {ultimasAlertas.map((a) => (
-              <li key={a.id} className="flex items-start gap-3 py-3 first:pt-0">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-medium text-brand-900">
-                      {etiquetaTipoAlerta[a.tipo]}
-                    </p>
-                    <Badge tono={tonoSeveridad[a.severidad]}>
-                      {etiquetaSeveridad[a.severidad]}
-                    </Badge>
-                    <Badge tono={tonoEstadoAlerta[a.estado]}>
-                      {etiquetaEstadoAlerta[a.estado]}
-                    </Badge>
-                  </div>
-                  <p className="mt-1 text-sm text-brand-600">{a.descripcion}</p>
-                </div>
-                <div className="shrink-0 text-right text-xs text-brand-500">
-                  <p>{tiempoRelativo(a.timestamp)}</p>
-                  <p className="mt-0.5">{a.ubicacion}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
+          {ultimasAlertas.length === 0 ? (
+            <Vacio
+              icono={<Activity size={22} aria-hidden />}
+              titulo="Sin incidentes"
+              descripcion="No se han detectado alertas en los últimos días."
+            />
+          ) : (
+            <ul className="divide-y divide-base-500">
+              {ultimasAlertas.map((a) => {
+                const abierta = a.estado !== "atendida";
+                return (
+                  <li
+                    key={a.id}
+                    className="flex items-start gap-3 py-3 first:pt-0"
+                  >
+                    {/* Marca de tiempo como columna fija: la bitácora se
+                        escanea por hora, igual que un log. */}
+                    <span className="tabular w-14 shrink-0 pt-0.5 text-xs text-ink-faint">
+                      {new Date(a.timestamp).toLocaleTimeString("es-PE", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                    <span
+                      aria-hidden
+                      className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
+                        abierta ? "bg-danger" : "bg-base-400"
+                      }`}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-bold text-ink">
+                          {etiquetaTipoAlerta[a.tipo]}
+                        </p>
+                        <Badge tono={tonoSeveridad[a.severidad]}>
+                          <MarcaSeveridad severidad={a.severidad} />
+                          {etiquetaSeveridad[a.severidad]}
+                        </Badge>
+                        <Badge tono={tonoEstadoAlerta[a.estado]}>
+                          {etiquetaEstadoAlerta[a.estado]}
+                        </Badge>
+                      </div>
+                      <p className="mt-1 text-sm text-ink-muted">
+                        {a.descripcion}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-xs text-ink-faint">
+                      {a.ubicacion}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </Card>
 
         <Card>
           <CardTitle
-            icon={
-              <MessageCircle size={18} aria-hidden className="text-brand-500" />
-            }
+            icon={<MessageCircle size={16} aria-hidden />}
             action={
-              <Link
-                href="/telepresencia"
-                className="text-sm font-medium text-brand-600 hover:text-brand-800"
-              >
+              <BotonEnlace href="/telepresencia" variante="fantasma">
                 Abrir
-              </Link>
+              </BotonEnlace>
             }
           >
-            Conversaciones
+            Conversación
           </CardTitle>
 
           <ul className="space-y-3">
             {ultimosMensajes.map((m) => (
-              <li key={m.id}>
-                <p className="text-xs font-medium text-brand-500">
-                  {etiquetaEmisor[m.emisor]} · {tiempoRelativo(m.timestamp)}
+              <li
+                key={m.id}
+                className="border-l-2 border-base-500 pl-3 transition-colors hover:border-signal"
+              >
+                <p className="text-xs font-bold text-ink-faint">
+                  {etiquetaEmisor[m.emisor]}
+                  <span className="tabular ml-1.5 font-normal">
+                    {tiempoRelativo(m.timestamp)}
+                  </span>
                 </p>
-                <p className="mt-0.5 text-sm text-brand-800">{m.texto}</p>
+                <p className="mt-0.5 text-sm text-ink-muted">{m.texto}</p>
               </li>
             ))}
           </ul>
 
-          <div className="mt-5 border-t border-brand-100 pt-4">
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-brand-500">
-              Actividad de hoy
-            </p>
-            <Barra valor={(hoy.horasActivo / 12) * 100} tono="calm" />
-            <p className="mt-1.5 text-sm text-brand-600">
-              {hoy.horasActivo} h activa
-            </p>
+          <div className="mt-5 border-t border-base-500 pt-4">
+            <div className="flex items-baseline justify-between">
+              <Rotulo>Charlas hoy</Rotulo>
+              <p className="tabular text-xl font-bold text-signal">
+                {hoy.interaccionesLLM}
+              </p>
+            </div>
           </div>
         </Card>
       </div>

@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import {
   Badge,
+  Boton,
   Card,
   CardTitle,
   PageHeader,
@@ -35,10 +36,12 @@ import {
 } from "@/lib/mock-data";
 import { formatFechaHora } from "@/lib/utils";
 
+// Cada emisor tiene su propio color de burbuja: quien habla se distingue
+// sin leer la etiqueta.
 const estiloMensaje: Record<Emisor, string> = {
-  "adulto-mayor": "bg-warm-50 text-brand-900 ring-warm-200",
-  cuidador: "bg-brand-500 text-white ring-brand-600",
-  "agente-llm": "bg-brand-50 text-brand-800 ring-brand-100",
+  "adulto-mayor": "bg-warn-bg text-ink ring-warn/30",
+  cuidador: "bg-signal/15 text-ink ring-signal/40",
+  "agente-llm": "bg-base-700 text-ink-muted ring-base-500",
 };
 
 /** Cruceta de teleoperación. Solo se muestra si el cuidador tiene permiso. */
@@ -62,17 +65,17 @@ function ControlesMovimiento({ habilitado }: { habilitado: boolean }) {
             aria-label={`Mover ${dir}`}
             className={cn(
               clase,
-              "grid h-12 place-items-center rounded-xl border border-brand-200 bg-white text-brand-700 transition-colors",
-              "hover:border-brand-300 hover:bg-brand-50 active:bg-brand-100",
-              "disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white",
-              dir === "detener" && "border-alert/30 text-alert-dark"
+              "grid h-14 cursor-pointer place-items-center rounded-xl border border-base-500 bg-base-800 text-ink-muted transition-colors",
+              "hover:border-base-400 hover:bg-base-700 active:bg-base-600",
+              "disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-base-800",
+              dir === "detener" && "border-danger/50 bg-danger-bg text-danger"
             )}
           >
-            <Icono size={18} aria-hidden />
+            <Icono size={22} aria-hidden />
           </button>
         ))}
       </div>
-      <p className="mt-3 text-xs text-brand-500">
+      <p className="mt-3 text-sm text-ink-muted">
         {habilitado
           ? "El robot evita obstáculos automáticamente aunque lo estés guiando."
           : "La teleoperación está desactivada en Configuración."}
@@ -92,8 +95,8 @@ export default function TelepresenciaPage() {
         titulo="Telepresencia"
         descripcion={`Videollamada en vivo con ${adultoMayor.nombre.split(" ")[0]} a través del robot.`}
       >
-        <Badge tono="calm">
-          <PuntoEstado tono="calm" />
+        <Badge tono="ok">
+          <PuntoEstado tono="ok" />
           Llamada activa · 04:12
         </Badge>
       </PageHeader>
@@ -102,91 +105,92 @@ export default function TelepresenciaPage() {
         {/* --- Video en vivo --- */}
         <div className="lg:col-span-2">
           <Card className="p-0">
-            <div className="relative aspect-video w-full overflow-hidden rounded-t-2xl bg-brand-900">
+            <div className="reticula relative aspect-video w-full overflow-hidden rounded-t-2xl bg-black">
               {/* Marcador de posición del stream RGB-D del robot. */}
               <div className="grid h-full w-full place-items-center text-center">
                 <div>
                   <Camera
                     size={40}
                     aria-hidden
-                    className="mx-auto text-brand-400"
+                    className="mx-auto text-ink-faint"
                   />
-                  <p className="mt-3 text-sm text-brand-200">
-                    Video en vivo · Intel RealSense D435i
+                  <p className="mt-3 text-sm font-bold text-ink-muted">
+                    Intel RealSense D435i
                   </p>
-                  <p className="mt-1 text-xs text-brand-400">
+                  <p className="tabular mt-1 text-xs text-ink-faint">
                     {estadoRobot.ubicacion} · 1280×720 · 30 fps
                   </p>
                 </div>
               </div>
 
-              <div className="absolute left-4 top-4 flex items-center gap-2 rounded-full bg-black/45 px-3 py-1.5 text-xs font-medium text-white backdrop-blur">
-                <Circle
-                  size={8}
+              {/* Esquinas de encuadre: leen como visor de cámara. */}
+              {[
+                "left-3 top-3 border-l-2 border-t-2",
+                "right-3 top-3 border-r-2 border-t-2",
+                "left-3 bottom-3 border-b-2 border-l-2",
+                "right-3 bottom-3 border-b-2 border-r-2",
+              ].map((pos) => (
+                <span
+                  key={pos}
                   aria-hidden
-                  className="fill-alert text-alert"
+                  className={`absolute h-6 w-6 border-signal/50 ${pos}`}
                 />
-                EN VIVO
+              ))}
+
+              <div className="absolute left-5 top-5 flex items-center gap-2 rounded-md bg-danger-solid px-2.5 py-1 text-xs font-bold uppercase tracking-label text-white">
+                <Circle size={7} aria-hidden className="fill-white text-white" />
+                En vivo
               </div>
 
               {/* Miniatura del cuidador (cámara local). */}
-              <div className="absolute bottom-4 right-4 grid h-24 w-32 place-items-center rounded-xl border border-white/20 bg-brand-800 text-xs text-brand-300">
+              <div className="absolute bottom-5 right-5 grid h-24 w-32 place-items-center rounded-xl border border-base-400 bg-base-800 text-xs font-bold text-ink-faint">
                 {camara ? "Tu cámara" : "Cámara apagada"}
               </div>
             </div>
 
             <div className="flex flex-wrap items-center justify-center gap-3 p-4">
-              <button
-                type="button"
+              <Boton
                 onClick={() => setMicrofono((v) => !v)}
                 aria-pressed={!microfono}
+                variante="secundario"
                 className={cn(
-                  "inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors",
-                  microfono
-                    ? "bg-brand-50 text-brand-700 hover:bg-brand-100"
-                    : "bg-alert-bg text-alert-dark hover:bg-alert/15"
+                  !microfono && "bg-danger-bg text-danger ring-danger/40"
                 )}
               >
                 {microfono ? (
-                  <Mic size={16} aria-hidden />
+                  <Mic size={18} aria-hidden />
                 ) : (
-                  <MicOff size={16} aria-hidden />
+                  <MicOff size={18} aria-hidden />
                 )}
                 {microfono ? "Micrófono" : "Silenciado"}
-              </button>
+              </Boton>
 
-              <button
-                type="button"
+              <Boton
                 onClick={() => setCamara((v) => !v)}
                 aria-pressed={!camara}
+                variante="secundario"
                 className={cn(
-                  "inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors",
-                  camara
-                    ? "bg-brand-50 text-brand-700 hover:bg-brand-100"
-                    : "bg-alert-bg text-alert-dark hover:bg-alert/15"
+                  !camara && "bg-danger-bg text-danger ring-danger/40"
                 )}
               >
                 {camara ? (
-                  <Video size={16} aria-hidden />
+                  <Video size={18} aria-hidden />
                 ) : (
-                  <VideoOff size={16} aria-hidden />
+                  <VideoOff size={18} aria-hidden />
                 )}
                 {camara ? "Cámara" : "Cámara apagada"}
-              </button>
+              </Boton>
 
-              <button
-                type="button"
-                className="inline-flex items-center gap-2 rounded-xl bg-alert px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-alert-dark"
-              >
-                <PhoneOff size={16} aria-hidden />
+              <Boton variante="emergencia" className="px-5">
+                <PhoneOff size={18} aria-hidden />
                 Finalizar
-              </button>
+              </Boton>
             </div>
           </Card>
 
           <Card className="mt-5">
             <CardTitle
-              icon={<Bot size={18} aria-hidden className="text-brand-500" />}
+              icon={<Bot size={20} aria-hidden className="text-ink-faint" />}
             >
               Guiar al robot
             </CardTitle>
@@ -199,7 +203,7 @@ export default function TelepresenciaPage() {
         {/* --- Transcripción del agente conversacional --- */}
         <Card className="flex max-h-[36rem] min-h-0 flex-col lg:max-h-[calc(100dvh-8rem)]">
           <CardTitle
-            icon={<Bot size={18} aria-hidden className="text-brand-500" />}
+            icon={<Bot size={20} aria-hidden className="text-ink-faint" />}
           >
             Conversación
           </CardTitle>
@@ -212,7 +216,7 @@ export default function TelepresenciaPage() {
                   key={m.id}
                   className={cn("flex flex-col", propio && "items-end")}
                 >
-                  <p className="mb-1 text-xs font-medium text-brand-500">
+                  <p className="mb-1 text-xs font-bold text-ink-muted">
                     {etiquetaEmisor[m.emisor]} · {formatFechaHora(m.timestamp)}
                   </p>
                   <p
@@ -229,7 +233,7 @@ export default function TelepresenciaPage() {
           </ol>
 
           <form
-            className="mt-4 flex gap-2 border-t border-brand-100 pt-4"
+            className="mt-4 flex gap-2 border-t border-base-500 pt-4"
             onSubmit={(e) => {
               e.preventDefault();
               setBorrador("");
@@ -243,17 +247,17 @@ export default function TelepresenciaPage() {
               value={borrador}
               onChange={(e) => setBorrador(e.target.value)}
               placeholder="Escribe un mensaje…"
-              className="min-w-0 flex-1 rounded-xl border border-brand-200 px-3.5 py-2.5 text-sm text-brand-900 outline-none placeholder:text-brand-400 focus:border-brand-400 focus:ring-2 focus:ring-brand-200"
+              className="min-h-11 min-w-0 flex-1 rounded-xl border border-base-500 px-3.5 py-2.5 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-signal"
             />
-            <button
+            <Boton
               type="submit"
               aria-label="Enviar mensaje"
-              className="grid w-11 shrink-0 place-items-center rounded-xl bg-brand-500 text-white transition-colors hover:bg-brand-600"
+              className="w-12 shrink-0 px-0"
             >
-              <Send size={16} aria-hidden />
-            </button>
+              <Send size={18} aria-hidden />
+            </Boton>
           </form>
-          <p className="mt-2 text-xs text-brand-500">
+          <p className="mt-2 text-sm text-ink-muted">
             El robot leerá tu mensaje en voz alta.
           </p>
         </Card>

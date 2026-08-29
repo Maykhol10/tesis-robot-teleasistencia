@@ -1,22 +1,27 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import {
   AlertTriangle,
   Check,
   MapPin,
   MessageSquare,
   Send,
+  ShieldCheck,
   Video,
 } from "lucide-react";
 import {
   Badge,
+  Boton,
+  BotonEnlace,
   Card,
+  MarcaSeveridad,
   PageHeader,
+  Vacio,
   tonoEstadoAlerta,
   tonoSeveridad,
 } from "@/components/ui";
+import { BannerAlerta } from "@/components/banner-alerta";
 import { cn, formatFechaHora, tiempoRelativo } from "@/lib/utils";
 import {
   alertas as alertasIniciales,
@@ -41,17 +46,27 @@ export default function AlertasPage() {
   const [filtro, setFiltro] = useState<Filtro>("todas");
   const [notaAbierta, setNotaAbierta] = useState<string | null>(null);
   const [borrador, setBorrador] = useState("");
+  // Confirmación efímera tras una acción: sin feedback, el cuidador no
+  // sabe si el toque registró.
+  const [confirmacion, setConfirmacion] = useState("");
 
   const visibles = useMemo(
-    () => (filtro === "todas" ? lista : lista.filter((a) => a.estado === filtro)),
+    () =>
+      filtro === "todas" ? lista : lista.filter((a) => a.estado === filtro),
     [lista, filtro]
   );
 
   const pendientes = lista.filter((a) => a.estado !== "atendida").length;
 
   function marcarAtendida(id: string) {
+    const alerta = lista.find((a) => a.id === id);
     setLista((prev) =>
       prev.map((a) => (a.id === id ? { ...a, estado: "atendida" } : a))
+    );
+    setConfirmacion(
+      alerta
+        ? `${etiquetaTipoAlerta[alerta.tipo]} marcada como atendida.`
+        : "Alerta marcada como atendida."
     );
   }
 
@@ -65,6 +80,7 @@ export default function AlertasPage() {
             : a
         )
       );
+      setConfirmacion("Nota guardada.");
     }
     setBorrador("");
     setNotaAbierta(null);
@@ -81,9 +97,19 @@ export default function AlertasPage() {
         }
       />
 
+      <BannerAlerta />
+
+      {/* Anuncio único de los cambios de estado, sin robar el foco. */}
+      <p role="status" aria-atomic className="sr-only">
+        {confirmacion}
+      </p>
+
+      {/* Grupo de filtros. No es un tablist: no hay paneles asociados ni
+          navegación por flechas, así que anunciarlo como tal engañaría al
+          lector de pantalla. Son botones de alternancia. */}
       <div
-        role="tablist"
-        aria-label="Filtrar alertas"
+        role="group"
+        aria-label="Filtrar alertas por estado"
         className="mb-5 flex flex-wrap gap-2"
       >
         {filtros.map((f) => {
@@ -95,18 +121,23 @@ export default function AlertasPage() {
           return (
             <button
               key={f.valor}
-              role="tab"
-              aria-selected={activo}
+              type="button"
+              aria-pressed={activo}
               onClick={() => setFiltro(f.valor)}
               className={cn(
-                "rounded-xl px-4 py-2 text-sm font-medium transition-colors",
+                "inline-flex min-h-11 cursor-pointer items-center rounded-xl px-4 py-2 text-sm font-bold transition-colors",
                 activo
-                  ? "bg-brand-500 text-white"
-                  : "bg-white text-brand-600 ring-1 ring-inset ring-brand-200 hover:bg-brand-50"
+                  ? "bg-signal text-signal-deep"
+                  : "bg-base-800 text-ink-muted ring-1 ring-inset ring-base-500 hover:bg-base-700"
               )}
             >
               {f.etiqueta}
-              <span className={cn("ml-2", activo ? "text-brand-100" : "text-brand-400")}>
+              <span
+                className={cn(
+                  "ml-2 rounded-full px-1.5 py-0.5 text-xs",
+                  activo ? "bg-signal-deep/25 text-signal-deep" : "bg-base-700 text-ink-muted"
+                )}
+              >
                 {conteo}
               </span>
             </button>
@@ -115,10 +146,12 @@ export default function AlertasPage() {
       </div>
 
       {visibles.length === 0 ? (
-        <Card className="py-12 text-center">
-          <p className="text-sm text-brand-600">
-            No hay alertas en esta categoría.
-          </p>
+        <Card>
+          <Vacio
+            icono={<ShieldCheck size={22} aria-hidden />}
+            titulo="Sin alertas aquí"
+            descripcion="No hay alertas en esta categoría."
+          />
         </Card>
       ) : (
         <ul className="space-y-4">
@@ -128,7 +161,10 @@ export default function AlertasPage() {
               <li key={a.id}>
                 <Card
                   className={cn(
-                    urgente && "border-alert/40 bg-alert-bg/40"
+                    // La urgencia se marca con una banda lateral gruesa,
+                    // no solo con un tinte de fondo.
+                    urgente &&
+                      "zona-alerta border-danger/50 border-l-8 border-l-danger bg-danger-bg"
                   )}
                 >
                   <div className="flex flex-wrap items-start gap-4">
@@ -136,8 +172,8 @@ export default function AlertasPage() {
                       className={cn(
                         "grid h-11 w-11 shrink-0 place-items-center rounded-xl",
                         urgente
-                          ? "bg-alert text-white"
-                          : "bg-brand-50 text-brand-600"
+                          ? "bg-danger-solid text-white"
+                          : "bg-base-700 text-ink-muted"
                       )}
                     >
                       <AlertTriangle size={20} aria-hidden />
@@ -145,10 +181,11 @@ export default function AlertasPage() {
 
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="text-base font-semibold text-brand-900">
+                        <h2 className="text-base font-bold text-ink">
                           {etiquetaTipoAlerta[a.tipo]}
                         </h2>
                         <Badge tono={tonoSeveridad[a.severidad]}>
+                          <MarcaSeveridad severidad={a.severidad} />
                           {etiquetaSeveridad[a.severidad]}
                         </Badge>
                         <Badge tono={tonoEstadoAlerta[a.estado]}>
@@ -161,13 +198,13 @@ export default function AlertasPage() {
                         </Badge>
                       </div>
 
-                      <p className="mt-2 text-sm text-brand-700">
+                      <p className="mt-2 text-sm text-ink">
                         {a.descripcion}
                       </p>
 
-                      <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-brand-500">
+                      <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-muted">
                         <span className="inline-flex items-center gap-1.5">
-                          <MapPin size={13} aria-hidden />
+                          <MapPin size={14} aria-hidden />
                           {a.ubicacion}
                         </span>
                         <span>
@@ -177,11 +214,11 @@ export default function AlertasPage() {
                       </p>
 
                       {a.notas && (
-                        <div className="mt-3 rounded-xl bg-brand-50/70 p-3">
-                          <p className="text-xs font-medium uppercase tracking-wide text-brand-500">
+                        <div className="mt-3 rounded-xl bg-base-700 p-3">
+                          <p className="text-xs font-bold uppercase tracking-wide text-ink-muted">
                             Notas del cuidador
                           </p>
-                          <p className="mt-1 whitespace-pre-line text-sm text-brand-700">
+                          <p className="mt-1 whitespace-pre-line text-sm text-ink">
                             {a.notas}
                           </p>
                         </div>
@@ -195,24 +232,31 @@ export default function AlertasPage() {
                             guardarNota(a.id);
                           }}
                         >
-                          <label htmlFor={`nota-${a.id}`} className="sr-only">
-                            Añadir nota
-                          </label>
-                          <input
-                            id={`nota-${a.id}`}
-                            autoFocus
-                            value={borrador}
-                            onChange={(e) => setBorrador(e.target.value)}
-                            placeholder="¿Qué pasó? ¿Cómo se resolvió?"
-                            className="min-w-0 flex-1 rounded-xl border border-brand-200 px-3.5 py-2 text-sm outline-none placeholder:text-brand-400 focus:border-brand-400 focus:ring-2 focus:ring-brand-200"
-                          />
-                          <button
+                          {/* Etiqueta visible: un placeholder solo no basta,
+                              desaparece al escribir. */}
+                          <div className="min-w-0 flex-1">
+                            <label
+                              htmlFor={`nota-${a.id}`}
+                              className="mb-1 block text-xs font-bold text-ink-muted"
+                            >
+                              Añadir nota
+                            </label>
+                            <input
+                              id={`nota-${a.id}`}
+                              autoFocus
+                              value={borrador}
+                              onChange={(e) => setBorrador(e.target.value)}
+                              placeholder="¿Qué pasó? ¿Cómo se resolvió?"
+                              className="min-h-11 w-full rounded-xl border border-base-500 px-3.5 py-2 text-sm outline-none placeholder:text-ink-faint focus:border-signal"
+                            />
+                          </div>
+                          <Boton
                             type="submit"
                             aria-label="Guardar nota"
-                            className="grid w-10 shrink-0 place-items-center rounded-xl bg-brand-500 text-white hover:bg-brand-600"
+                            className="mt-6 w-12 shrink-0 px-0"
                           >
-                            <Send size={15} aria-hidden />
-                          </button>
+                            <Send size={16} aria-hidden />
+                          </Boton>
                         </form>
                       )}
                     </div>
@@ -220,34 +264,34 @@ export default function AlertasPage() {
                     <div className="flex shrink-0 flex-wrap gap-2">
                       {a.estado !== "atendida" && (
                         <>
-                          <Link
+                          <BotonEnlace
                             href="/telepresencia"
-                            className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-600"
+                            variante={urgente ? "emergencia" : "primario"}
                           >
-                            <Video size={15} aria-hidden />
+                            <Video size={16} aria-hidden />
                             Ver ahora
-                          </Link>
-                          <button
-                            type="button"
+                          </BotonEnlace>
+                          <Boton
+                            variante="secundario"
                             onClick={() => marcarAtendida(a.id)}
-                            className="inline-flex items-center gap-2 rounded-xl border border-brand-200 bg-white px-4 py-2 text-sm font-semibold text-brand-700 transition-colors hover:bg-brand-50"
                           >
-                            <Check size={15} aria-hidden />
+                            <Check size={16} aria-hidden />
                             Atendida
-                          </button>
+                          </Boton>
                         </>
                       )}
-                      <button
-                        type="button"
+                      <Boton
+                        variante="secundario"
+                        aria-expanded={notaAbierta === a.id}
+                        aria-controls={`nota-${a.id}`}
                         onClick={() => {
                           setNotaAbierta(notaAbierta === a.id ? null : a.id);
                           setBorrador("");
                         }}
-                        className="inline-flex items-center gap-2 rounded-xl border border-brand-200 bg-white px-4 py-2 text-sm font-semibold text-brand-700 transition-colors hover:bg-brand-50"
                       >
-                        <MessageSquare size={15} aria-hidden />
+                        <MessageSquare size={16} aria-hidden />
                         Nota
-                      </button>
+                      </Boton>
                     </div>
                   </div>
                 </Card>

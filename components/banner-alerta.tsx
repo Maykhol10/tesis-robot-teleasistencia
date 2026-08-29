@@ -1,50 +1,70 @@
-import Link from "next/link";
-import { AlertTriangle, MapPin, Video } from "lucide-react";
+"use client";
+
+import { useState } from "react";
+import { AlertTriangle, MapPin, Video, X } from "lucide-react";
 import { alertaCritica, etiquetaTipoAlerta } from "@/lib/mock-data";
 import { tiempoRelativo } from "@/lib/utils";
+import { BotonEnlace } from "@/components/ui";
 
 /**
- * Banner persistente para una emergencia sin atender. Es lo primero que debe
- * ver el cuidador al entrar, en cualquier pantalla.
+ * Aviso destacado de una emergencia sin atender.
+ *
+ * Vive sólo en la página de alertas: aquí la lista completa queda justo
+ * debajo, así que descartarlo no esconde la emergencia — sigue en la lista,
+ * marcada como pendiente.
  */
 export function BannerAlerta() {
-  if (!alertaCritica) return null;
+  const [visible, setVisible] = useState(true);
+
+  if (!alertaCritica || !visible) return null;
+
+  const titulo = etiquetaTipoAlerta[alertaCritica.tipo];
 
   return (
     <div
       role="alert"
-      className="animate-pulso-alerta mx-4 mt-4 rounded-2xl border border-alert/30 bg-alert-bg p-4 md:mx-6"
+      className="zona-alerta animate-pulso-alerta mb-5 overflow-hidden rounded-2xl border border-danger/50 bg-danger-bg"
     >
-      <div className="flex flex-wrap items-center gap-4">
-        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-alert text-white">
-          <AlertTriangle size={22} aria-hidden />
+      {/* Cinta superior: la palabra antes que el dato. */}
+      <div className="flex items-center gap-2 bg-danger-solid px-4 py-1.5">
+        <AlertTriangle size={14} aria-hidden className="text-white" />
+        <span className="text-xs font-bold uppercase tracking-label text-white">
+          Emergencia sin atender
         </span>
+        <span className="tabular ml-auto text-xs font-bold text-white/90">
+          {tiempoRelativo(alertaCritica.timestamp)}
+        </span>
+        <button
+          type="button"
+          onClick={() => setVisible(false)}
+          aria-label="Descartar este aviso. La alerta seguirá en la lista de abajo."
+          className="-mr-1.5 grid h-7 w-7 shrink-0 cursor-pointer place-items-center rounded-md text-white/80 transition-colors hover:bg-white/20 hover:text-white"
+        >
+          <X size={16} aria-hidden />
+        </button>
+      </div>
 
+      <div className="flex flex-wrap items-center gap-4 p-4">
         <div className="min-w-0 flex-1">
-          <p className="text-base font-semibold text-alert-dark">
-            {etiquetaTipoAlerta[alertaCritica.tipo]} detectada ·{" "}
-            {tiempoRelativo(alertaCritica.timestamp)}
-          </p>
-          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-alert-dark/85">
-            <MapPin size={14} aria-hidden className="shrink-0" />
-            {alertaCritica.ubicacion} — {alertaCritica.descripcion}
+          <p className="text-xl font-bold text-ink">{titulo}</p>
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-ink-muted">
+            <MapPin size={15} aria-hidden className="shrink-0 text-danger" />
+            <span className="font-bold text-danger">
+              {alertaCritica.ubicacion}
+            </span>
+            — {alertaCritica.descripcion}
           </p>
         </div>
 
-        <div className="flex gap-2">
-          <Link
+        <div className="flex flex-1 gap-2 sm:flex-none">
+          <BotonEnlace
             href="/telepresencia"
-            className="inline-flex items-center gap-2 rounded-xl bg-alert px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-alert-dark"
+            variante="emergencia"
+            className="flex-1 sm:flex-none"
           >
-            <Video size={16} aria-hidden />
+            <Video size={18} aria-hidden />
             Ver ahora
-          </Link>
-          <Link
-            href="/alertas"
-            className="inline-flex items-center rounded-xl border border-alert/30 bg-white px-4 py-2.5 text-sm font-semibold text-alert-dark transition-colors hover:bg-alert-bg"
-          >
-            Detalles
-          </Link>
+          </BotonEnlace>
         </div>
       </div>
     </div>

@@ -64,6 +64,40 @@ export interface RegistroActividad {
   horasActivo: number;
 }
 
+/**
+ * Habitación del croquis. Coordenadas en un lienzo de 100x70 unidades,
+ * proporcional al plano real de la vivienda.
+ */
+export interface Habitacion {
+  id: string;
+  nombre: string;
+  x: number;
+  y: number;
+  ancho: number;
+  alto: number;
+}
+
+/** Vano en un muro: puerta o paso abierto. */
+export interface Vano {
+  /** Orientación del muro donde se abre. */
+  eje: "h" | "v";
+  /** Posición del muro en el eje perpendicular. */
+  pos: number;
+  /** Inicio y fin de la abertura a lo largo del muro. */
+  desde: number;
+  hasta: number;
+  /** Puerta batiente (dibuja hoja y arco) o paso libre. */
+  tipo: "puerta" | "paso";
+  /** Sentido de apertura de la hoja. */
+  giro?: 1 | -1;
+}
+
+/** Un paso del recorrido de la persona durante el día. */
+export interface PasoRecorrido {
+  habitacionId: string;
+  hora: string; // "HH:MM"
+}
+
 export interface ResumenRespuesta {
   alertaId: string;
   tipo: TipoAlerta;
@@ -112,6 +146,53 @@ export const estadoRobot: EstadoRobot = {
   ultimoCheckIn: `${HOY}T14:30:00-05:00`,
   version: "Orin-NX · v1.4.2",
 };
+
+// ---------------------------------------------------------------------------
+// Croquis de la vivienda. Un solo piso, distribución típica de casa peruana:
+// zona social al frente (sala/comedor), servicios al fondo, dormitorio
+// separado por el pasillo.
+//
+// Lienzo 100 x 70. El origen (0,0) es la esquina superior izquierda.
+// ---------------------------------------------------------------------------
+export const habitaciones: Habitacion[] = [
+  { id: "sala", nombre: "Sala", x: 0, y: 0, ancho: 42, alto: 38 },
+  { id: "comedor", nombre: "Comedor", x: 42, y: 0, ancho: 32, alto: 38 },
+  { id: "cocina", nombre: "Cocina", x: 74, y: 0, ancho: 26, alto: 38 },
+  { id: "pasillo", nombre: "Pasillo", x: 0, y: 38, ancho: 100, alto: 12 },
+  { id: "dormitorio", nombre: "Dormitorio", x: 0, y: 50, ancho: 58, alto: 20 },
+  { id: "bano", nombre: "Baño", x: 58, y: 50, ancho: 42, alto: 20 },
+];
+
+/**
+ * Vanos del croquis. El muro perimetral y los tabiques se dibujan macizos y
+ * estas aberturas se restan, igual que en un plano de arquitecto.
+ */
+export const vanos: Vano[] = [
+  // Tabiques verticales de la zona social
+  { eje: "v", pos: 42, desde: 24, hasta: 34, tipo: "paso" },
+  { eje: "v", pos: 74, desde: 24, hasta: 34, tipo: "paso" },
+  // Zona social -> pasillo
+  { eje: "h", pos: 38, desde: 14, hasta: 24, tipo: "paso" },
+  { eje: "h", pos: 38, desde: 54, hasta: 64, tipo: "paso" },
+  { eje: "h", pos: 38, desde: 82, hasta: 92, tipo: "puerta", giro: 1 },
+  // Pasillo -> dormitorio y baño
+  { eje: "h", pos: 50, desde: 16, hasta: 26, tipo: "puerta", giro: -1 },
+  { eje: "h", pos: 50, desde: 70, hasta: 79, tipo: "puerta", giro: -1 },
+  // Puerta de entrada al departamento
+  { eje: "v", pos: 0, desde: 12, hasta: 24, tipo: "puerta", giro: 1 },
+];
+
+/** Recorrido de la persona en lo que va del día. */
+export const recorridoHoy: PasoRecorrido[] = [
+  { habitacionId: "dormitorio", hora: "07:40" },
+  { habitacionId: "bano", hora: "08:05" },
+  { habitacionId: "comedor", hora: "08:15" },
+  { habitacionId: "cocina", hora: "09:30" },
+  { habitacionId: "sala", hora: "11:20" },
+  { habitacionId: "dormitorio", hora: "13:10" },
+  { habitacionId: "pasillo", hora: "14:28" },
+  { habitacionId: "sala", hora: "14:35" },
+];
 
 export const alertas: Alerta[] = [
   {
@@ -290,6 +371,22 @@ export const temasFrecuentes: { tema: string; conteo: number }[] = [
 ];
 
 // ---------- Selectores derivados ----------
+
+/** Resuelve el nombre libre que traen las alertas al id del croquis. */
+export function habitacionPorNombre(nombre: string): Habitacion | undefined {
+  const limpio = nombre
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "");
+  return habitaciones.find(
+    (h) =>
+      h.id === limpio ||
+      h.nombre
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[̀-ͯ]/g, "") === limpio
+  );
+}
 
 export const alertasPendientes = alertas.filter((a) => a.estado !== "atendida");
 export const alertaCritica = alertas.find(

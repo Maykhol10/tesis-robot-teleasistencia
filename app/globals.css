@@ -1,11 +1,19 @@
+@import url("https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;500;700&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --background: #f7fafb;
-  --foreground: #29404a;
-  --font-sans: "Segoe UI", system-ui, -apple-system, sans-serif;
+  color-scheme: dark;
+  --background: #080d14;
+  --foreground: #f1f6fa;
+  /* Atkinson Hyperlegible: diseñada por el Braille Institute para
+     maximizar la distinción entre caracteres en baja visión. */
+  --font-sans: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system,
+    sans-serif;
+  /* Monoespaciada para telemetría: cifras de ancho fijo que no bailan. */
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", monospace;
 }
 
 * {
@@ -25,37 +33,148 @@ body {
   background: var(--background);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* Scrollbar suave */
+/* Retícula tenue de fondo: da profundidad de "sala de control" sin
+   competir con ningún dato. */
+.reticula {
+  background-image:
+    linear-gradient(rgba(78, 108, 143, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(78, 108, 143, 0.07) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+/* ---------------------------------------------------------------------
+   Foco visible global. Ningún control queda sin indicador de teclado.
+   En oscuro el anillo es cian, que es el color de "atención" del sistema.
+   --------------------------------------------------------------------- */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid #22d3ee;
+  outline-offset: 2px;
+  border-radius: 0.625rem;
+}
+
+.zona-alerta :where(a, button):focus-visible {
+  outline-color: #fb7185;
+}
+
+/* Salto al contenido para usuarios de teclado y lector de pantalla. */
+.saltar-al-contenido {
+  position: absolute;
+  left: -9999px;
+  z-index: 100;
+}
+.saltar-al-contenido:focus {
+  left: 1rem;
+  top: 1rem;
+  padding: 0.75rem 1.25rem;
+  background: #22d3ee;
+  color: #08131a;
+  border-radius: 0.75rem;
+  font-weight: 700;
+}
+
+/* Scrollbar acorde al tema oscuro. */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd9dd;
+  background: #243447;
   border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: content-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #a9c0c6;
+  background: #4e6c8f;
+  background-clip: content-box;
 }
 
-/* Animación sutil para el banner de alerta crítica */
+/* Cifras de telemetría alineadas en columna. */
+.tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Movimiento: sólo donde comunica un estado --- */
+
+/* Emergencia sin atender. */
 @keyframes pulso-alerta {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(224, 93, 68, 0.35);
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(251, 113, 133, 0.4),
+      0 0 28px -4px rgba(251, 113, 133, 0.4);
   }
   50% {
-    box-shadow: 0 0 0 8px rgba(224, 93, 68, 0);
+    box-shadow:
+      0 0 0 1px rgba(251, 113, 133, 0.7),
+      0 0 44px 0 rgba(251, 113, 133, 0.28);
   }
 }
-
 .animate-pulso-alerta {
-  animation: pulso-alerta 2s ease-in-out infinite;
+  animation: pulso-alerta 2.4s ease-in-out infinite;
+}
+
+/* Latido del punto "en vivo". */
+@keyframes latido {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(2.1);
+    opacity: 0;
+  }
+}
+.animate-latido {
+  animation: latido 2s ease-out infinite;
+}
+
+/* Halo de la persona en el croquis: respira para indicar señal viva. */
+@keyframes halo {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.22;
+  }
+  50% {
+    transform: scale(1.55);
+    opacity: 0.06;
+  }
+}
+.animate-halo {
+  animation: halo 2.6s ease-in-out infinite;
+}
+
+/* Barrido de la línea de actividad: sugiere lectura continua. */
+@keyframes barrido {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+.animate-barrido {
+  animation: barrido 3.5s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-pulso-alerta {
+  .animate-pulso-alerta,
+  .animate-latido,
+  .animate-barrido,
+  .animate-halo {
     animation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
   }
 }
