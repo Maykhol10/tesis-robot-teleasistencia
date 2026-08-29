@@ -191,6 +191,51 @@ en la Pi.
 
 ---
 
+## 9. Modo automático: portar código probado sin reescribirlo
+
+El seguimiento de personas viene de
+`Robotica_Avanzada/Proyecto/Seguidor_de_objetos/object_tracker.py`, que ya
+funcionaba en este robot. **Lo traduje a otra estructura en vez de copiarlo
+literalmente, y esa traducción arrastró diferencias que costó detectar.**
+
+Las confirmadas y ya corregidas: faltaba el `cv2.flip(im, 1)` previo a la
+inferencia —sin él el desvío sale con el signo cambiado y el robot gira al
+lado contrario— e interpreté mal `top_k=1`, mirando diez candidatos en vez
+del más fiable, que es bastante más permisivo que el original.
+
+**Queda pendiente auditar el flujo de decisión completo** (`_move_robot`
+frente a `_decidir`): el orden en que se atienden giro y distancia, y el
+sentido de cada orden. Comparar constantes no basta para darlo por bueno.
+
+**La lección:** cuando el código de origen ya está probado en el hardware,
+se copia tal cual y sólo se adapta el envoltorio. Aquí lo que obligaba a
+cambiar era la cámara (viene compartida del servidor WebRTC, no de
+`cv2.VideoCapture(0)`) y la salida a motores (`Motores` en vez de `util1`).
+La lógica de decisión no debió tocarse.
+
+Para verificar un port así no basta comparar constantes: hay que poner las
+funciones **una al lado de otra** y leerlas. Comparar sólo los números decía
+que todo coincidía mientras el robot hacía lo contrario.
+
+### Detalles del port que sí eran necesarios
+
+- **Velocidades sin acotar.** El seguidor calcula hasta 70 con la fórmula del
+  original. El límite 3–25 de la teleoperación manual es para un mando que
+  maneja una persona, así que el seguidor usa `mover_directo()`, que escribe
+  al bus sin recortar, igual que `util1.py`.
+- **Etiquetas en español.** El `coco_labels.txt` de este robot está traducido:
+  dice `persona`, no `person`. Buscar la etiqueta inglesa descartaba todas las
+  detecciones aunque el detector funcionara bien.
+- **Los gráficos van en SVG sobre el vídeo**, no quemados en la imagen con
+  OpenCV. Reproducen `_draw_overlays` —bandas negras, cuadro de puntería con
+  su `area_factor = 2.1`, recuadro y punto rojo del centro de Kalman— pero el
+  vídeo llega limpio y la Pi no gasta CPU dibujando, que con la inferencia
+  corriendo va justa.
+- **Cambiar a Teleoperado detiene el seguimiento**: si no, el robot seguiría
+  corrigiendo por su cuenta mientras el cuidador intenta conducirlo.
+
+---
+
 ## Configuración
 
 `NEXT_PUBLIC_ROBOT_URL` define a qué robot apunta la web:

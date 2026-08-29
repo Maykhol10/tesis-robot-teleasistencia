@@ -9,9 +9,12 @@ import {
   Bot,
   Camera,
   Circle,
+  FlipVertical,
+  Gamepad2,
   Mic,
   MicOff,
   PhoneOff,
+  Sparkles,
   Square,
   Video,
   VideoOff,
@@ -33,6 +36,9 @@ import {
   type Direccion,
 } from "@/lib/teleoperacion";
 import { BotonChat, PanelChat } from "@/components/chat";
+import { ModoAutomatico } from "@/components/modo-automatico";
+import { CapaSeguimiento } from "@/components/capa-seguimiento";
+import { useSeguimiento } from "@/lib/seguimiento";
 import {
   adultoMayor,
   configuracionInicial,
@@ -148,6 +154,21 @@ export default function TelepresenciaPage() {
   const [camara, setCamara] = useState(true);
   const stream = useStreamRobot();
   const [chatAbierto, setChatAbierto] = useState(false);
+  const [modo, setModo] = useState<"manual" | "auto">("manual");
+  // Segun como quede montada la camara en el robot, la imagen puede llegar
+  // del reves. Se voltea aqui con CSS: no cuesta CPU en la Pi ni altera lo
+  // que ve el seguidor, que sigue trabajando sobre la imagen original.
+  const [invertida, setInvertida] = useState(false);
+  const seguimiento = useSeguimiento();
+
+  // Volver a teleoperado corta el seguimiento: si no, el robot seguiria
+  // corrigiendo por su cuenta mientras el cuidador intenta conducirlo.
+  const cambiarModo = (nuevo: "manual" | "auto") => {
+    if (nuevo === "manual" && seguimiento.estado === "siguiendo") {
+      void seguimiento.detener();
+    }
+    setModo(nuevo);
+  };
 
   return (
     <div className="flex min-h-full flex-col">
@@ -185,6 +206,7 @@ export default function TelepresenciaPage() {
                 muted
                 className={cn(
                   "h-full w-full object-cover",
+                  invertida && "rotate-180",
                   stream.estado !== "conectado" && "hidden"
                 )}
               />
@@ -222,6 +244,17 @@ export default function TelepresenciaPage() {
                     )}
                   </div>
                 </div>
+              )}
+
+              {/* Marcas del seguimiento: recuadro de la persona, punto que
+                  persigue el robot y zona muerta. Sólo con vídeo real. */}
+              {modo === "auto" && stream.estado === "conectado" && (
+                <CapaSeguimiento
+                  deteccion={seguimiento.deteccion}
+                  activo={seguimiento.estado === "siguiendo"}
+                  fps={stream.fps}
+                  invertida={invertida}
+                />
               )}
 
               {/* Esquinas de encuadre: leen como visor de cámara. */}
@@ -295,6 +328,17 @@ export default function TelepresenciaPage() {
                 {camara ? "Cámara" : "Cámara apagada"}
               </Boton>
 
+              <Boton
+                onClick={() => setInvertida((v) => !v)}
+                aria-pressed={invertida}
+                variante="secundario"
+                title="Girar la imagen 180 grados"
+                className={cn(invertida && "bg-signal/15 text-signal ring-signal/40")}
+              >
+                <FlipVertical size={18} aria-hidden />
+                {invertida ? "Invertida" : "Invertir"}
+              </Boton>
+
               <BotonChat
                 abierto={chatAbierto}
                 alPulsar={() => setChatAbierto((v) => !v)}
@@ -313,18 +357,53 @@ export default function TelepresenciaPage() {
           </Card>
         </div>
 
-        {/* --- Guiar al robot. La celda es el ancla: la tarjeta se estira
-            dentro sin aportar altura a la fila. --- */}
+        {/* --- Modo de conducción. La celda es el ancla: la tarjeta se
+            estira dentro sin aportar altura a la fila. --- */}
         <div className="relative min-h-0">
           <Card className="flex min-h-0 flex-col overflow-y-auto lg:absolute lg:inset-0">
-            <CardTitle
-              icon={<Bot size={20} aria-hidden className="text-ink-faint" />}
+            {/* Los dos modos son excluyentes: o conduces tú, o conduce el
+                robot. Por eso son pestañas y no dos tarjetas a la vez. */}
+            <div
+              role="tablist"
+              aria-label="Modo de conducción"
+              className="mb-4 flex gap-1 rounded-xl bg-base-900 p-1"
             >
-              Guiar al robot
-            </CardTitle>
-            <ControlesMovimiento
-              habilitado={configuracionInicial.teleoperacionPermitida}
-            />
+              {(
+                [
+                  { id: "manual", etiqueta: "Teleoperado", Icono: Gamepad2 },
+                  { id: "auto", etiqueta: "Automático", Icono: Sparkles },
+                ] as const
+              ).map(({ id, etiqueta, Icono }) => (
+                <button
+                  key={id}
+                  role="tab"
+                  type="button"
+                  aria-selected={modo === id}
+                  onClick={() => cambiarModo(id)}
+                  className={cn(
+                    "flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg px-3 text-sm font-bold transition-colors",
+                    modo === id
+                      ? "bg-base-700 text-ink"
+                      : "text-ink-faint hover:text-ink-muted"
+                  )}
+                >
+                  <Icono
+                    size={17}
+                    aria-hidden
+                    className={modo === id ? "text-signal" : ""}
+                  />
+                  {etiqueta}
+                </button>
+              ))}
+            </div>
+
+            {modo === "manual" ? (
+              <ControlesMovimiento
+                habilitado={configuracionInicial.teleoperacionPermitida}
+              />
+            ) : (
+              <ModoAutomatico seguimiento={seguimiento} />
+            )}
           </Card>
         </div>
 
