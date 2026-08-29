@@ -12,6 +12,16 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="es-PE">
+      <head>
+        {/* GitHub Pages sirve el HTML con Cache-Control: max-age=600 y no deja
+            cambiarlo. Tras un despliegue el navegador sigue pidiendo durante
+            diez minutos los bundles del build anterior, que ya no existen, y
+            la página queda rota. Estas metaetiquetas piden que el documento
+            se revalide siempre; los archivos de /_next/static llevan hash en
+            el nombre, así que esos sí conviene que se cacheen. */}
+        <meta httpEquiv="Cache-Control" content="no-cache, must-revalidate" />
+        <meta httpEquiv="Pragma" content="no-cache" />
+      </head>
       <body>
         {/* Primer elemento enfocable: permite saltar la navegación. */}
         <a href="#contenido" className="saltar-al-contenido">
