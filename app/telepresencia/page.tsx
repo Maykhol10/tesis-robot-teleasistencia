@@ -26,6 +26,7 @@ import {
   PuntoEstado,
 } from "@/components/ui";
 import { cn } from "@/lib/utils";
+import { useStreamRobot } from "@/lib/webrtc";
 import {
   adultoMayor,
   configuracionInicial,
@@ -88,6 +89,7 @@ export default function TelepresenciaPage() {
   const [microfono, setMicrofono] = useState(true);
   const [camara, setCamara] = useState(true);
   const [borrador, setBorrador] = useState("");
+  const stream = useStreamRobot();
 
   return (
     <>
@@ -95,9 +97,9 @@ export default function TelepresenciaPage() {
         titulo="Telepresencia"
         descripcion={`Videollamada en vivo con ${adultoMayor.nombre.split(" ")[0]} a través del robot.`}
       >
-        <Badge tono="ok">
-          <PuntoEstado tono="ok" />
-          Llamada activa · 04:12
+        <Badge tono={stream.estado === "conectado" ? "ok" : "neutral"}>
+          <PuntoEstado tono={stream.estado === "conectado" ? "ok" : "neutral"} />
+          {stream.estado === "conectado" ? "Llamada activa" : stream.detalle}
         </Badge>
       </PageHeader>
 
@@ -106,22 +108,51 @@ export default function TelepresenciaPage() {
         <div className="lg:col-span-2">
           <Card className="p-0">
             <div className="reticula relative aspect-video w-full overflow-hidden rounded-t-2xl bg-black">
-              {/* Marcador de posición del stream RGB-D del robot. */}
-              <div className="grid h-full w-full place-items-center text-center">
-                <div>
-                  <Camera
-                    size={40}
-                    aria-hidden
-                    className="mx-auto text-ink-faint"
-                  />
-                  <p className="mt-3 text-sm font-bold text-ink-muted">
-                    Intel RealSense D435i
-                  </p>
-                  <p className="tabular mt-1 text-xs text-ink-faint">
-                    {estadoRobot.ubicacion} · 1280×720 · 30 fps
-                  </p>
+              {/* Stream del robot. Sigue oculto hasta que llega el primer
+                  frame: un <video> vacío se ve como un rectángulo negro. */}
+              <video
+                ref={stream.videoRef}
+                autoPlay
+                playsInline
+                muted
+                className={cn(
+                  "h-full w-full object-cover",
+                  stream.estado !== "conectado" && "hidden"
+                )}
+              />
+
+              {stream.estado !== "conectado" && (
+                <div className="grid h-full w-full place-items-center text-center">
+                  <div>
+                    <Camera
+                      size={40}
+                      aria-hidden
+                      className="mx-auto text-ink-faint"
+                    />
+                    <p className="mt-3 text-sm font-bold text-ink-muted">
+                      {stream.estado === "sin-configurar"
+                        ? "Modo demostración"
+                        : "Cámara del robot"}
+                    </p>
+                    <p className="tabular mt-1 text-xs text-ink-faint">
+                      {stream.detalle}
+                    </p>
+                    {stream.estado !== "sin-configurar" && (
+                      <Boton
+                        onClick={stream.conectar}
+                        variante="secundario"
+                        className="mt-4"
+                        disabled={stream.estado === "conectando"}
+                      >
+                        <Video size={18} aria-hidden />
+                        {stream.estado === "conectando"
+                          ? "Conectando…"
+                          : "Conectar al robot"}
+                      </Boton>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Esquinas de encuadre: leen como visor de cámara. */}
               {[
@@ -137,10 +168,23 @@ export default function TelepresenciaPage() {
                 />
               ))}
 
-              <div className="absolute left-5 top-5 flex items-center gap-2 rounded-md bg-danger-solid px-2.5 py-1 text-xs font-bold uppercase tracking-label text-white">
-                <Circle size={7} aria-hidden className="fill-white text-white" />
-                En vivo
-              </div>
+              {/* El distintivo sólo aparece con video real: si no, afirmaría
+                  que hay una emisión en curso que no existe. */}
+              {stream.estado === "conectado" && (
+                <div className="absolute left-5 top-5 flex items-center gap-2 rounded-md bg-danger-solid px-2.5 py-1 text-xs font-bold uppercase tracking-label text-white">
+                  <Circle
+                    size={7}
+                    aria-hidden
+                    className="fill-white text-white"
+                  />
+                  En vivo
+                  {stream.fps !== null && (
+                    <span className="tabular font-bold text-white/90">
+                      {stream.fps.toFixed(0)} fps
+                    </span>
+                  )}
+                </div>
+              )}
 
               {/* Miniatura del cuidador (cámara local). */}
               <div className="absolute bottom-5 right-5 grid h-24 w-32 place-items-center rounded-xl border border-base-400 bg-base-800 text-xs font-bold text-ink-faint">
@@ -181,7 +225,12 @@ export default function TelepresenciaPage() {
                 {camara ? "Cámara" : "Cámara apagada"}
               </Boton>
 
-              <Boton variante="emergencia" className="px-5">
+              <Boton
+                variante="emergencia"
+                className="px-5"
+                onClick={stream.desconectar}
+                disabled={stream.estado !== "conectado"}
+              >
                 <PhoneOff size={18} aria-hidden />
                 Finalizar
               </Boton>

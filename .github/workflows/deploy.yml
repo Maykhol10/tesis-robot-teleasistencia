@@ -31,6 +31,11 @@ jobs:
       - name: Construir sitio estático
         env:
           GITHUB_PAGES: "true"
+          # URL pública del robot. Se define como variable del repositorio
+          # (Settings > Secrets and variables > Actions > Variables) porque
+          # el túnel de pruebas cambia de dirección en cada arranque.
+          # Sin ella, la web se despliega en modo demostración.
+          NEXT_PUBLIC_ROBOT_URL: ${{ vars.NEXT_PUBLIC_ROBOT_URL }}
         run: npm run build
 
       - uses: actions/configure-pages@v5
