@@ -65,9 +65,12 @@ export function useStreamRobot(): Stream {
     setDetalle("Negociando con el robot…");
 
     try {
-      // Sin STUN: en la misma red los candidatos locales bastan. A través del
-      // túnel, Cloudflare ya expone una ruta alcanzable.
-      const pc = new RTCPeerConnection({ iceServers: [] });
+      // STUN permite al navegador descubrir su propia dirección pública. Sin
+      // esto sólo anuncia su IP privada, y desde otra red no hay ninguna ruta
+      // por la que el video pueda llegar aunque la señalización funcione.
+      const pc = new RTCPeerConnection({
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+      });
       pcRef.current = pc;
 
       pc.addEventListener("track", (e) => {
